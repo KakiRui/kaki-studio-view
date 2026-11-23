@@ -165,6 +165,7 @@
       const ownerByNumber = new Map();
       data.customers.forEach(customer => customer.nums.forEach(number => ownerByNumber.set(number, customer.name)));
       document.getElementById('publicBatchTitle').textContent = data.id;
+      document.querySelector('.public-hero > p:not(.overline)').textContent = '查看当前档位的号码归属和顾客清单。此页面不会修改数据。';
       document.getElementById('publicTotalCount').textContent = data.total;
       document.getElementById('publicSoldCount').textContent = ownerByNumber.size;
       document.getElementById('publicRemainingCount').textContent = Math.max(0, data.total - ownerByNumber.size);
