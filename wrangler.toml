@@ -1,0 +1,10 @@
+name = "kaki-studio-share"
+main = "worker.js"
+compatibility_date = "2026-11-23"
+
+[observability]
+enabled = false
+
+[[kv_namespaces]]
+binding = "SNAPSHOTS"
+id = "fa6c064e7e3543cea7aa2211ff9a955d"
