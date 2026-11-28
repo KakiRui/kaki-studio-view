@@ -1,0 +1,37 @@
+name: Prune expired snapshots
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - snapshots/*.json
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prune-snapshots
+  cancel-in-progress: true
+
+jobs:
+  prune:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove snapshots older than seven days
+        run: node scripts/prune-snapshots.mjs
+      - name: Commit cleanup
+        run: |
+          if [ -z "$(git status --porcelain snapshots)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add snapshots
+          git commit -m "Prune expired snapshots"
+          git push
