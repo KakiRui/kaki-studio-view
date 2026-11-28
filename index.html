@@ -142,7 +142,9 @@
       }
     }
 
-    const API_BASE = 'https://kaki-studio-share.meowruii1010.workers.dev';
+    const LEGACY_API_BASE = 'https://kaki-studio-share.meowruii1010.workers.dev';
+    const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/KakiRui/kaki-studio-view/main/snapshots';
+    const JSDELIVR_BASE = 'https://cdn.jsdelivr.net/gh/KakiRui/kaki-studio-view@main/snapshots';
 
     function renderLoading() {
       document.getElementById('publicBatchTitle').textContent = '正在读取档位…';
@@ -213,43 +215,52 @@
         return;
       }
       renderLoading();
-      let result = null;
-      let lastStatus = 0;
-      for(let attempt = 0; attempt < 4; attempt++) {
-        if(attempt > 0) {
-          document.getElementById('publicBatchTitle').textContent = '正在同步快照…';
-          document.querySelector('.public-hero > p:not(.overline)').textContent = '刚生成的链接可能需要几秒钟同步到其他地区。';
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
+      const safeCode = encodeURIComponent(code);
+      const fetchSnapshot = async (url) => {
         const controller = new AbortController();
-        const timeout = window.setTimeout(() => controller.abort(), 8000);
+        const timeout = window.setTimeout(() => controller.abort(), 6000);
         try {
-          const response = await fetch(`${API_BASE}/api/snapshot/${encodeURIComponent(code)}`, {
+          const response = await fetch(url, {
             cache: 'no-store',
             headers: { Accept: 'application/json' },
             signal: controller.signal
           });
-          lastStatus = response.status;
-          if(response.ok) {
-            result = await response.json();
-            break;
-          }
-          if(response.status !== 404 && response.status !== 410 && response.status < 500) break;
-        } catch (_) {
+          if(!response.ok) throw new Error(`HTTP ${response.status}`);
+          const result = await response.json();
+          if(!result?.d) throw new Error('invalid snapshot');
+          return result;
         } finally {
           window.clearTimeout(timeout);
         }
+      };
+
+      let result = null;
+      for(let attempt = 0; attempt < 8; attempt++) {
+        if(attempt > 0) {
+          document.getElementById('publicBatchTitle').textContent = '正在同步快照…';
+          document.querySelector('.public-hero > p:not(.overline)').textContent = '正在尝试 GitHub 页面、GitHub 源文件和备用线路…';
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+        const cacheBust = Date.now();
+        const pageSnapshotUrl = new URL(`snapshots/${safeCode}.json?t=${cacheBust}`, location.href).toString();
+        const urls = [
+          pageSnapshotUrl,
+          `${GITHUB_RAW_BASE}/${safeCode}.json?t=${cacheBust}`,
+          `${JSDELIVR_BASE}/${safeCode}.json?t=${cacheBust}`,
+          `${LEGACY_API_BASE}/api/snapshot/${safeCode}`
+        ];
+        try {
+          result = await Promise.any(urls.map(fetchSnapshot));
+          break;
+        } catch (_) {}
       }
       const data = result?.d ? decodePayload(result.d) : null;
       if(data) {
         renderView(data);
         document.getElementById('publicSearch').disabled = false;
-      } else if(lastStatus === 404 || lastStatus === 410) {
-        renderError('链接无法读取或已过期');
-        document.querySelector('.public-hero > p:not(.overline)').textContent = '请确认链接复制完整、稍后刷新，或让商家重新发送新的查看链接。';
       } else {
         renderError('暂时无法读取');
-        document.querySelector('.public-hero > p:not(.overline)').textContent = '网络或同步暂时异常，请稍后刷新。';
+        document.querySelector('.public-hero > p:not(.overline)').textContent = '请确认链接复制完整、稍后刷新，或让商家重新发送新的查看链接。';
       }
     }
 
