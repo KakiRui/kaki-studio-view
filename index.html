@@ -215,16 +215,19 @@
       renderLoading();
       let result = null;
       let lastStatus = 0;
-      for(let attempt = 0; attempt < 12; attempt++) {
+      for(let attempt = 0; attempt < 4; attempt++) {
         if(attempt > 0) {
           document.getElementById('publicBatchTitle').textContent = '正在同步快照…';
           document.querySelector('.public-hero > p:not(.overline)').textContent = '刚生成的链接可能需要几秒钟同步到其他地区。';
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 8000);
         try {
           const response = await fetch(`${API_BASE}/api/snapshot/${encodeURIComponent(code)}`, {
             cache: 'no-store',
-            headers: { Accept: 'application/json' }
+            headers: { Accept: 'application/json' },
+            signal: controller.signal
           });
           lastStatus = response.status;
           if(response.ok) {
@@ -232,7 +235,10 @@
             break;
           }
           if(response.status !== 404 && response.status !== 410 && response.status < 500) break;
-        } catch (_) {}
+        } catch (_) {
+        } finally {
+          window.clearTimeout(timeout);
+        }
       }
       const data = result?.d ? decodePayload(result.d) : null;
       if(data) {
