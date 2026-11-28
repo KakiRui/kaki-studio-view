@@ -254,6 +254,12 @@
           break;
         } catch (_) {}
       }
+      const createdAt = Date.parse(result?.createdAt || '');
+      if(Number.isFinite(createdAt) && Date.now() - createdAt > 7 * 24 * 60 * 60 * 1000) {
+        renderError('链接已过期');
+        document.querySelector('.public-hero > p:not(.overline)').textContent = '这份只读快照已超过 7 天有效期，请让商家重新发送新的查看链接。';
+        return;
+      }
       const data = result?.d ? decodePayload(result.d) : null;
       if(data) {
         renderView(data);
